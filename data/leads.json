@@ -1,0 +1,33 @@
+[
+  {
+    "id": "lead-1731140001",
+    "type": "discovery_booking",
+    "createdAt": "2026-11-09T05:15:00.000Z",
+    "name": "David Wright",
+    "email": "david.wright@wrightlogistics.com",
+    "phone": "+1 (555) 234-5678",
+    "company": "Wright Industrial Logistics LLC",
+    "serviceFocus": "Salesforce QuickStart for SMBs",
+    "date": "2026-11-12",
+    "timeSlot": "11:00 AM",
+    "timezone": "Eastern Time (US & Canada)",
+    "message": "Moving our 14-rep sales team off Excel sheets. Need custom price books and QuickBooks sync.",
+    "status": "New",
+    "source": "website_scheduler",
+    "notes": "Follow up before call with QuickStart pricing sheet."
+  },
+  {
+    "id": "lead-1731140002",
+    "type": "contact_inquiry",
+    "createdAt": "2026-11-09T03:40:00.000Z",
+    "name": "Sarah Chen",
+    "email": "schen@summitcapitaladvisors.com",
+    "phone": "+1 (555) 876-5432",
+    "company": "Summit Capital Advisory",
+    "serviceFocus": "CRM Health & Process Audit",
+    "message": "Our Salesforce org has over 90 custom fields that reps don't use and 3 failing flows. Need an architectural audit to clean it up.",
+    "status": "Contacted",
+    "source": "contact_form",
+    "notes": "Sent introductory audit diagnostic questionnaire."
+  }
+]
