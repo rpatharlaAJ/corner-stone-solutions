@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ArrowRight, CheckCircle2, Calendar, Clock, Download, ShieldCheck } from 'lucide-react';
 import { CORE_SERVICES } from '../data/consultingData';
 
@@ -24,6 +24,16 @@ export const DiscoverySchedulerModal: React.FC<DiscoverySchedulerModalProps> = (
   const [notes, setNotes] = useState(initialNotes || '');
   const [isBooked, setIsBooked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedService(initialService || CORE_SERVICES[0].title);
+      setNotes(initialNotes || '');
+      setIsBooked(false);
+      setSubmitError(null);
+    }
+  }, [isOpen, initialService, initialNotes]);
 
   if (!isOpen) return null;
 
@@ -40,8 +50,9 @@ export const DiscoverySchedulerModal: React.FC<DiscoverySchedulerModalProps> = (
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await fetch('/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -57,11 +68,15 @@ export const DiscoverySchedulerModal: React.FC<DiscoverySchedulerModalProps> = (
           source: 'website_scheduler',
         }),
       });
-    } catch (err) {
-      console.warn('Could not save booking to backend:', err);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to reserve time slot.');
+      }
+      setIsBooked(true);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Unable to submit booking right now. Please try again.');
     } finally {
       setIsSubmitting(false);
-      setIsBooked(true);
     }
   };
 
@@ -286,6 +301,12 @@ END:VCALENDAR`;
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
+
+            {submitError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-md text-xs text-rose-700 font-medium">
+                {submitError}
+              </div>
+            )}
 
             <div className="pt-2">
               <button

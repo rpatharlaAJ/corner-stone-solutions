@@ -89,15 +89,15 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 │   └── leads.json            # Persistent storage for inquiries and bookings
 ├── src/
 │   ├── components/
-│   │   ├── AdminLeadPortal.tsx         # Password-protected owner portal
 │   │   ├── BlogSection.tsx             # Tactical guides & reading modal
 │   │   ├── CaseStudiesSection.tsx      # Before/After client transformations
 │   │   ├── Chatbot.tsx                 # Gemini AI assistant with suggested prompts
 │   │   ├── ContactSection.tsx          # Public inquiry form
 │   │   ├── DiscoverySchedulerModal.tsx # Interactive 30-min discovery scheduler
-│   │   ├── Footer.tsx                  # Clean footer with owner portal link
+│   │   ├── Footer.tsx                  # Clean public footer
 │   │   ├── Hero.tsx                    # Punchy value prop & launch badge
 │   │   ├── Navbar.tsx                  # Public responsive navigation
+│   │   ├── OwnerPortalPage.tsx         # Standalone password-protected owner portal (/owner)
 │   │   ├── ServicesSection.tsx         # 3 Core consulting packages
 │   │   ├── TrustBar.tsx                # Certified Salesforce credentials & guarantees
 │   │   └── WhyUsSection.tsx            # Boutique vs. traditional agency comparison
@@ -112,13 +112,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🔐 Admin Portal Access
+## 🔐 Owner Portal Access (Separate Page)
 
-The public website does not display inbound leads or customer bookings. Only authorized administrators can view them:
-1. **Direct URL**: Navigate to `http://localhost:3000/#admin`
-2. **Keyboard Shortcut**: Press `Ctrl + Shift + A` (or `Cmd + Shift + A` on Mac) anywhere on the page.
-3. **Footer**: Click `🔒 Owner Portal` in the lower right corner.
-4. **Default Passcode**: `2026` (changeable in `AdminLeadPortal.tsx`).
+The public website (`/`) contains **no links or buttons** to the Owner Inbox or Owner Portal. Inquiries, booked discovery calls, and chatbot prospects submitted on `/` are sent directly to the separate Owner Portal page:
+1. **Direct URL**: Navigate to `/owner` (e.g., `http://localhost:3000/owner` or `/admin`)
+2. **Default Passcode**: `2026` (changeable in `OwnerPortalPage.tsx`)
+3. **Actions**: View incoming prospects, log/send email outreach, copy or dispatch prospect briefs via webhook, manage pipeline status, and export CSV.
 
 ---
 

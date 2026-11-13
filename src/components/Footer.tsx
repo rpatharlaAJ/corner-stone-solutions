@@ -1,12 +1,11 @@
 import React from 'react';
-import { ShieldCheck, ArrowUp, Inbox } from 'lucide-react';
+import { ShieldCheck, ArrowUp } from 'lucide-react';
 
 interface FooterProps {
   onOpenScheduler: () => void;
-  onOpenLeadPortal: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenScheduler, onOpenLeadPortal }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenScheduler }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -37,13 +36,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenScheduler, onOpenLeadPorta
             <a href="#why-us" className="hover:text-slate-900 transition-colors">Why Corner Stone</a>
             <a href="#insights" className="hover:text-slate-900 transition-colors">Insights</a>
             <a href="#contact" className="hover:text-slate-900 transition-colors">Contact</a>
-            <button
-              onClick={onOpenLeadPortal}
-              className="text-blue-700 hover:text-blue-900 font-semibold inline-flex items-center gap-1"
-            >
-              <Inbox className="w-3.5 h-3.5" />
-              <span>Owner Inbox</span>
-            </button>
           </div>
 
           <button
@@ -63,13 +55,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenScheduler, onOpenLeadPorta
               <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
               <span>Certified Salesforce Application Architect</span>
             </div>
-            <span aria-hidden="true">·</span>
-            <button
-              onClick={onOpenLeadPortal}
-              className="hover:text-slate-700 underline"
-            >
-              Inquiries & Bookings (Owner Portal)
-            </button>
             <span aria-hidden="true">·</span>
             <button
               onClick={scrollToTop}

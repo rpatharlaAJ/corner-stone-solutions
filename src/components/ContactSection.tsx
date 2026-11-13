@@ -12,12 +12,14 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenScheduler 
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await fetch('/api/leads', {
+      const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -29,11 +31,15 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenScheduler 
           source: 'contact_form',
         }),
       });
-    } catch (err) {
-      console.warn('Could not record lead to backend:', err);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send inquiry.');
+      }
+      setSubmitted(true);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Unable to submit your inquiry right now. Please try again.');
     } finally {
       setIsSubmitting(false);
-      setSubmitted(true);
     }
   };
 
@@ -179,6 +185,12 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenScheduler 
                     className="w-full px-3 py-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
+
+                {submitError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-md text-xs text-rose-700 font-medium">
+                    {submitError}
+                  </div>
+                )}
 
                 <div className="pt-2 flex items-center justify-between">
                   <span className="text-[11px] text-slate-400">

@@ -263,7 +263,7 @@ app.get('/api/leads', (_req, res) => {
   res.json({ leads, total: leads.length });
 });
 
-// POST /api/leads - Save a new discovery booking or contact inquiry
+// POST /api/leads - Save a new discovery booking or contact inquiry from the public page
 app.post('/api/leads', (req, res) => {
   try {
     const { name, email, phone, company, type, serviceFocus, date, timeSlot, timezone, message, source, notes } = req.body;
@@ -289,6 +289,7 @@ app.post('/api/leads', (req, res) => {
       status: 'New',
       source: source || 'website',
       notes: notes || '',
+      outreachHistory: [],
     };
 
     leads.unshift(newLead);
@@ -321,6 +322,63 @@ app.patch('/api/leads/:id', (req, res) => {
     return res.json({ success: true, lead: leads[idx] });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to update lead.' });
+  }
+});
+
+// POST /api/leads/:id/outreach - Log outreach to a prospect or forward prospect brief via webhook
+app.post('/api/leads/:id/outreach', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { channel, subject, summary, webhookUrl, nextStatus } = req.body;
+    const leads = readLeads();
+    const idx = leads.findIndex((l: any) => l.id === id);
+
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Lead not found.' });
+    }
+
+    if (webhookUrl) {
+      const parsed = new URL(webhookUrl);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        return res.status(400).json({ error: 'Invalid webhook URL protocol.' });
+      }
+      const webhookRes = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'cornerstone.prospect_dispatched',
+          dispatchedAt: new Date().toISOString(),
+          prospect: leads[idx],
+          note: summary || '',
+        }),
+      });
+      if (!webhookRes.ok) {
+        return res.status(502).json({ error: `Webhook target returned HTTP ${webhookRes.status}` });
+      }
+    }
+
+    const entry = {
+      id: `out-${Date.now()}`,
+      sentAt: new Date().toISOString(),
+      channel: channel || 'email',
+      subject: subject || 'Follow-up from Corner Stone Solutions',
+      summary: summary || '',
+    };
+
+    const existingHistory = Array.isArray(leads[idx].outreachHistory) ? leads[idx].outreachHistory : [];
+    leads[idx].outreachHistory = [entry, ...existingHistory];
+    leads[idx].lastContactedAt = entry.sentAt;
+    if (nextStatus) {
+      leads[idx].status = nextStatus;
+    } else if (leads[idx].status === 'New') {
+      leads[idx].status = 'Contacted';
+    }
+
+    writeLeads(leads);
+    return res.json({ success: true, lead: leads[idx] });
+  } catch (err: any) {
+    console.error('Error recording outreach:', err);
+    return res.status(500).json({ error: err?.message || 'Failed to record prospect outreach.' });
   }
 });
 

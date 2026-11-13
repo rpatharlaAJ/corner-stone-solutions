@@ -15,26 +15,41 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { DiscoverySchedulerModal } from './components/DiscoverySchedulerModal';
 import { Chatbot } from './components/Chatbot';
-import { AdminLeadPortal } from './components/AdminLeadPortal';
+import { OwnerPortalPage } from './components/OwnerPortalPage';
+
+function isOwnerPortalLocation(): boolean {
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
+  const hash = window.location.hash.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  return (
+    path === '/owner' ||
+    path === '/admin' ||
+    hash === '#owner' ||
+    hash === '#admin' ||
+    params.get('owner') === 'true' ||
+    params.get('admin') === 'true'
+  );
+}
 
 export default function App() {
+  const [isOwnerRoute, setIsOwnerRoute] = useState<boolean>(() => isOwnerPortalLocation());
   const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
-  const [isLeadPortalOpen, setIsLeadPortalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string | undefined>(undefined);
   const [initialNotes, setInitialNotes] = useState<string | undefined>(undefined);
-  const [unreadLeadsCount, setUnreadLeadsCount] = useState<number>(0);
 
   useEffect(() => {
-    fetch('/api/leads')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.leads) {
-          const newOnes = data.leads.filter((l: any) => l.status === 'New').length;
-          setUnreadLeadsCount(newOnes);
-        }
-      })
-      .catch(() => {});
+    const syncRoute = () => setIsOwnerRoute(isOwnerPortalLocation());
+    window.addEventListener('popstate', syncRoute);
+    window.addEventListener('hashchange', syncRoute);
+    return () => {
+      window.removeEventListener('popstate', syncRoute);
+      window.removeEventListener('hashchange', syncRoute);
+    };
   }, []);
+
+  if (isOwnerRoute) {
+    return <OwnerPortalPage />;
+  }
 
   const handleOpenScheduler = (serviceTitle?: string, notes?: string) => {
     setSelectedService(serviceTitle);
@@ -44,12 +59,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-slate-900 selection:text-white">
-      {/* 3-Zone Clean Top Bar */}
-      <Navbar 
-        onOpenScheduler={() => handleOpenScheduler()} 
-        onOpenLeadPortal={() => setIsLeadPortalOpen(true)}
-        unreadCount={unreadLeadsCount}
-      />
+      {/* 3-Zone Clean Public Top Bar */}
+      <Navbar onOpenScheduler={() => handleOpenScheduler()} />
 
       <main className="flex-1">
         {/* Punchy Hero Section */}
@@ -90,11 +101,8 @@ export default function App() {
         />
       </main>
 
-      {/* Quiet Professional Footer */}
-      <Footer 
-        onOpenScheduler={() => handleOpenScheduler()} 
-        onOpenLeadPortal={() => setIsLeadPortalOpen(true)}
-      />
+      {/* Quiet Professional Public Footer */}
+      <Footer onOpenScheduler={() => handleOpenScheduler()} />
 
       {/* Fast, Frictionless Discovery Scheduler Modal */}
       <DiscoverySchedulerModal
@@ -106,13 +114,6 @@ export default function App() {
 
       {/* Solutions Advisory Chatbot */}
       <Chatbot onOpenScheduler={handleOpenScheduler} />
-
-      {/* Owner Inquiries & Booked Calls Management Portal */}
-      <AdminLeadPortal
-        isOpen={isLeadPortalOpen}
-        onClose={() => setIsLeadPortalOpen(false)}
-        onLeadCountChange={setUnreadLeadsCount}
-      />
     </div>
   );
 }
