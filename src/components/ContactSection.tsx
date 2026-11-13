@@ -181,7 +181,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ onOpenScheduler 
                     required
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Tell us about your team size, current setup (spreadsheets, HubSpot, or existing Salesforce), and primary goals..."
+                    placeholder="Tell us about your team size, current setup (spreadsheets, HubSpot, Sales Cloud, NPSP, or Nonprofit Cloud), and primary goals..."
                     className="w-full px-3 py-2 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>

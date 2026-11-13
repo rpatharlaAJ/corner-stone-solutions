@@ -17,7 +17,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenScheduler, onExploreServices }
           <span className="inline-block w-2 h-2 rounded-full bg-blue-600"></span>
           <span>Launching 2026</span>
           <span aria-hidden="true">·</span>
-          <span>Boutique Salesforce Consulting for Growing SMBs</span>
+          <span>Boutique Salesforce Consulting for SMBs &amp; Nonprofits</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
@@ -29,7 +29,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenScheduler, onExploreServices }
             </h1>
 
             <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
-              Corner Stone Solutions helps small and growing businesses eliminate spreadsheet chaos, automate quote-to-close workflows, and launch reliable Salesforce systems without enterprise consulting bloat or six-month delays.
+              Corner Stone Solutions helps small businesses and nonprofits eliminate spreadsheet chaos, manage operations across Sales Cloud, NPSP, or Nonprofit Cloud (NPC), and launch reliable Salesforce systems without enterprise bloat.
             </p>
 
             {/* Scannable Commitments */}

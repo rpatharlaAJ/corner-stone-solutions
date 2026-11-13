@@ -26,17 +26,18 @@ const ai = new GoogleGenAI({
   },
 });
 
-const SYSTEM_INSTRUCTION = `You are the Virtual Advisory Assistant for "Corner Stone Solutions", a premier boutique Salesforce consulting firm tailored for small and growing businesses (SMBs).
+const SYSTEM_INSTRUCTION = `You are the Virtual Advisory Assistant for "Corner Stone Solutions", a premier boutique Salesforce consulting firm tailored for small and growing businesses (SMBs) and nonprofits.
 
 ABOUT CORNER STONE SOLUTIONS:
-1. Core Mission: Help small businesses scale operations efficiently, eliminate spreadsheet chaos, and build unshakeable Salesforce foundations right from Day One.
+1. Core Mission: Help small businesses and nonprofits scale operations efficiently, eliminate spreadsheet chaos, and build unshakeable Salesforce foundations right from Day One.
 2. Core Solutions:
    - Salesforce QuickStart for SMBs (3-4 weeks · Fixed price): 5-stage pipeline, calendar/email sync (Google/Outlook), lead routing, executive dashboards, rep training.
    - CRM Health & Process Audit (1-2 weeks · Flat-fee diagnostic): Line-by-line inspection of Flows, orphaned fields, security/sharing rules, license optimization, and 30-day quick win roadmap.
    - Dedicated Admin & Flow Automation (Monthly Retainer · Flexible hours with rollover): Senior certified architect support under 4-hour SLA without the $140k full-time headcount cost.
+   - Nonprofit Operations (NPSP & NPC) (3-5 weeks · Fixed scope & nonprofit rate): Support nonprofits managing donors, householding, recurring gifts, grantmaking, fundraising campaigns, and program outcomes using NPSP (Nonprofit Success Pack) or Salesforce Nonprofit Cloud (NPC), including Power of Us guidance.
 3. Technical Strengths:
-   - 100% Certified Application Architect led.
-   - Integrations: QuickBooks, Stripe, HubSpot, DocuSign, Slack, REST APIs.
+   - Certified Application Architect & Nonprofit Cloud Consultant led.
+   - Integrations: QuickBooks, Stripe, Classy, HubSpot, DocuSign, Slack, REST APIs.
    - Special Founding Client Cohort now booking.
 
 STRICT INSTRUCTIONS:
@@ -53,6 +54,18 @@ STRICT INSTRUCTIONS:
 // Knowledge base fallback when GEMINI_API_KEY is not configured or times out
 function getFallbackAdvisoryResponse(userQuery: string): { reply: string; suggestions: string[]; actionTrigger?: string } {
   const q = userQuery.toLowerCase();
+
+  if (q.includes('nonprofit') || q.includes('non-profit') || q.includes('npsp') || q.includes('npc') || q.includes('donor') || q.includes('grant') || q.includes('fundrais')) {
+    return {
+      reply: "Our **Nonprofit Operations (NPSP & NPC)** practice helps mission-driven organizations manage donors, grants, and programs cleanly on Salesforce.\n\n**How We Support Nonprofits:**\n• Implementation & optimization on both **Nonprofit Success Pack (NPSP)** and **Salesforce Nonprofit Cloud (NPC)**\n• Donor management, householding, recurring gifts, and automated tax-receipt Flows\n• Grantmaking pipelines, fundraising campaign tracking, and program outcome reporting\n• Donation & accounting integrations (Stripe, Classy, QuickBooks)\n• Staff training and Power of Us (P10) license setup guidance",
+      suggestions: [
+        "Should we choose NPSP or Nonprofit Cloud (NPC)?",
+        "Schedule a 30-min Nonprofit Discovery Call",
+        "Can you migrate donor spreadsheets into Salesforce?"
+      ],
+      actionTrigger: 'SCHEDULE_CALL',
+    };
+  }
 
   if (q.includes('quickstart') || q.includes('4-week') || q.includes('launch') || q.includes('start')) {
     return {

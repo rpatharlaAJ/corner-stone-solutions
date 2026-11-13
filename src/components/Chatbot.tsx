@@ -19,7 +19,7 @@ interface ChatbotProps {
 
 const STARTER_PROMPTS = [
   "What is included in the 4-week QuickStart?",
-  "How do you help teams moving off spreadsheets?",
+  "How do you support nonprofits on NPSP or NPC?",
   "What does a CRM Health & Process Audit cover?",
   "Can you connect Salesforce to QuickBooks or Stripe?",
 ];
