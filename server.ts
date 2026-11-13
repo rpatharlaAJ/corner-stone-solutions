@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
@@ -268,8 +269,212 @@ function writeLeads(leads: any[]) {
   }
 }
 
-// GET /api/leads - Fetch all inquiries and booked discovery calls
-app.get('/api/leads', (_req, res) => {
+// Owner Portal Authentication (no hardcoded default password)
+interface OwnerAuthRecord {
+  salt: string;
+  passwordHash: string;
+  sessionSecret: string;
+  updatedAt: string;
+}
+
+const ownerAuthFilePath = path.join(__dirname, 'data', 'owner-auth.json');
+const ephemeralSessionSecret = crypto.randomBytes(32).toString('hex');
+
+function readOwnerAuth(): OwnerAuthRecord | null {
+  try {
+    if (!fs.existsSync(ownerAuthFilePath)) return null;
+    const raw = fs.readFileSync(ownerAuthFilePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed?.salt && parsed?.passwordHash && parsed?.sessionSecret) {
+      return parsed as OwnerAuthRecord;
+    }
+    return null;
+  } catch (err) {
+    console.error('Error reading owner-auth.json:', err);
+    return null;
+  }
+}
+
+function writeOwnerAuth(record: OwnerAuthRecord): void {
+  fs.mkdirSync(path.dirname(ownerAuthFilePath), { recursive: true });
+  fs.writeFileSync(ownerAuthFilePath, JSON.stringify(record, null, 2));
+}
+
+function getEnvOwnerPassword(): string | null {
+  const raw = process.env.OWNER_PORTAL_PASSWORD?.trim() || '';
+  if (!raw || raw === 'MY_OWNER_PORTAL_PASSWORD' || raw === 'undefined' || raw === 'null') {
+    return null;
+  }
+  return raw;
+}
+
+function isOwnerConfigured(): boolean {
+  return Boolean(readOwnerAuth()) || Boolean(getEnvOwnerPassword());
+}
+
+function hashPassword(password: string, existingSalt?: string): { salt: string; hash: string } {
+  const salt = existingSalt || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return { salt, hash };
+}
+
+function verifyPassword(password: string): boolean {
+  const stored = readOwnerAuth();
+  if (stored) {
+    const derived = crypto.scryptSync(password, stored.salt, 64);
+    const expected = Buffer.from(stored.passwordHash, 'hex');
+    if (derived.length !== expected.length) return false;
+    return crypto.timingSafeEqual(derived, expected);
+  }
+
+  const envPassword = getEnvOwnerPassword();
+  if (envPassword) {
+    const a = crypto.createHash('sha256').update(password).digest();
+    const b = crypto.createHash('sha256').update(envPassword).digest();
+    return crypto.timingSafeEqual(a, b);
+  }
+
+  return false;
+}
+
+function getSessionSecret(): string {
+  return readOwnerAuth()?.sessionSecret || ephemeralSessionSecret;
+}
+
+function createOwnerToken(secret: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({
+      role: 'owner',
+      exp: Date.now() + 24 * 60 * 60 * 1000,
+    })
+  ).toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+function verifyOwnerToken(token: string | undefined): boolean {
+  if (!token) return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const [payload, sig] = parts;
+  if (!payload || !sig) return false;
+
+  try {
+    const expectedSig = crypto.createHmac('sha256', getSessionSecret()).update(payload).digest('hex');
+    const sigBuf = Buffer.from(sig, 'hex');
+    const expectedBuf = Buffer.from(expectedSig, 'hex');
+    if (sigBuf.length === 0 || sigBuf.length !== expectedBuf.length) return false;
+    if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return false;
+
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
+    return decoded?.role === 'owner' && typeof decoded?.exp === 'number' && decoded.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function extractBearerToken(req: express.Request): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  return undefined;
+}
+
+function requireOwnerAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = extractBearerToken(req);
+  if (!verifyOwnerToken(token)) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  next();
+}
+
+app.get('/api/owner/auth/status', (req, res) => {
+  const token = extractBearerToken(req);
+  res.json({
+    configured: isOwnerConfigured(),
+    authenticated: verifyOwnerToken(token),
+  });
+});
+
+app.post('/api/owner/auth/setup', (req, res) => {
+  try {
+    if (isOwnerConfigured()) {
+      return res.status(409).json({ error: 'Owner password is already configured. Please sign in.' });
+    }
+
+    const { password } = req.body || {};
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+      return res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
+    }
+
+    const { salt, hash } = hashPassword(password);
+    const record: OwnerAuthRecord = {
+      salt,
+      passwordHash: hash,
+      sessionSecret: crypto.randomBytes(32).toString('hex'),
+      updatedAt: new Date().toISOString(),
+    };
+    writeOwnerAuth(record);
+
+    const token = createOwnerToken(record.sessionSecret);
+    return res.status(201).json({ success: true, token });
+  } catch (err) {
+    console.error('Error configuring owner password:', err);
+    return res.status(500).json({ error: 'Failed to save owner password.' });
+  }
+});
+
+app.post('/api/owner/auth/login', (req, res) => {
+  if (!isOwnerConfigured()) {
+    return res.status(409).json({ error: 'Owner password has not been set up yet.' });
+  }
+
+  const { password } = req.body || {};
+  if (typeof password !== 'string' || !password) {
+    return res.status(400).json({ error: 'Password is required.' });
+  }
+
+  if (!verifyPassword(password)) {
+    return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+  }
+
+  const token = createOwnerToken(getSessionSecret());
+  return res.json({ success: true, token });
+});
+
+app.post('/api/owner/auth/change-password', requireOwnerAuth, (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (typeof currentPassword !== 'string' || !currentPassword) {
+      return res.status(400).json({ error: 'Current password is required.' });
+    }
+    if (!verifyPassword(currentPassword)) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
+      return res.status(400).json({ error: 'New password must be between 8 and 128 characters.' });
+    }
+
+    const { salt, hash } = hashPassword(newPassword);
+    const record: OwnerAuthRecord = {
+      salt,
+      passwordHash: hash,
+      sessionSecret: crypto.randomBytes(32).toString('hex'),
+      updatedAt: new Date().toISOString(),
+    };
+    writeOwnerAuth(record);
+
+    const token = createOwnerToken(record.sessionSecret);
+    return res.json({ success: true, token });
+  } catch (err) {
+    console.error('Error changing owner password:', err);
+    return res.status(500).json({ error: 'Failed to update owner password.' });
+  }
+});
+
+// GET /api/leads - Fetch all inquiries and booked discovery calls (owner only)
+app.get('/api/leads', requireOwnerAuth, (_req, res) => {
   const leads = readLeads();
   // Return sorted with newest first
   leads.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -316,8 +521,8 @@ app.post('/api/leads', (req, res) => {
   }
 });
 
-// PATCH /api/leads/:id - Update status or notes for a lead
-app.patch('/api/leads/:id', (req, res) => {
+// PATCH /api/leads/:id - Update status or notes for a lead (owner only)
+app.patch('/api/leads/:id', requireOwnerAuth, (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
@@ -338,8 +543,8 @@ app.patch('/api/leads/:id', (req, res) => {
   }
 });
 
-// POST /api/leads/:id/outreach - Log outreach to a prospect or forward prospect brief via webhook
-app.post('/api/leads/:id/outreach', async (req, res) => {
+// POST /api/leads/:id/outreach - Log outreach to a prospect or forward prospect brief via webhook (owner only)
+app.post('/api/leads/:id/outreach', requireOwnerAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { channel, subject, summary, webhookUrl, nextStatus } = req.body;
@@ -395,8 +600,8 @@ app.post('/api/leads/:id/outreach', async (req, res) => {
   }
 });
 
-// DELETE /api/leads/:id - Remove a test lead
-app.delete('/api/leads/:id', (req, res) => {
+// DELETE /api/leads/:id - Remove a test lead (owner only)
+app.delete('/api/leads/:id', requireOwnerAuth, (req, res) => {
   try {
     const { id } = req.params;
     let leads = readLeads();
