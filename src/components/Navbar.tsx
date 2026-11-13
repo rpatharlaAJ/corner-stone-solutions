@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, X, ArrowRight, ShieldCheck, Inbox } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
 
 interface NavbarProps {
   onOpenScheduler: () => void;
-  onOpenLeadPortal: () => void;
-  unreadCount?: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler, onOpenLeadPortal, unreadCount = 0 }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const links = [
@@ -89,17 +87,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler, onOpenLeadPorta
               </a>
             ))}
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenLeadPortal();
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-slate-800 bg-slate-100 rounded-md hover:bg-slate-200"
-              >
-                <Inbox className="w-3.5 h-3.5 text-blue-700" />
-                <span>Owner Inbox {unreadCount > 0 ? `(${unreadCount} New)` : ''}</span>
-              </button>
-
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
