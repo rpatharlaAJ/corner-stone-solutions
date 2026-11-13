@@ -20,6 +20,9 @@ import {
   Radio,
   Share2,
   X,
+  Eye,
+  EyeOff,
+  Settings2,
 } from 'lucide-react';
 
 export interface OutreachEntry {
@@ -71,19 +74,92 @@ export const OwnerPortalPage: React.FC = () => {
   const [actionBusy, setActionBusy] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Security Passcode Protection Gate
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('cs_owner_auth') === 'true';
-  });
-  const [passcodeInput, setPasscodeInput] = useState('');
-  const [passcodeError, setPasscodeError] = useState(false);
+  // Owner Authentication State (custom password stored hashed on server; no default password)
+  const [authToken, setAuthToken] = useState<string>(() => sessionStorage.getItem('cs_owner_token') || '');
+  const [authChecking, setAuthChecking] = useState<boolean>(true);
+  const [isPasswordConfigured, setIsPasswordConfigured] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
-  const OWNER_PASSCODE = '2026';
+  // Login / First-time Setup Form State
+  const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Change Password Modal State
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState('');
+  const [changePasswordBusy, setChangePasswordBusy] = useState(false);
+  const [changePasswordFeedback, setChangePasswordFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const authHeaders = useCallback(
+    (extra: Record<string, string> = {}): Record<string, string> => {
+      const headers: Record<string, string> = { ...extra };
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+      return headers;
+    },
+    [authToken]
+  );
+
+  const handleLock = useCallback(() => {
+    setIsAuthenticated(false);
+    setAuthToken('');
+    sessionStorage.removeItem('cs_owner_token');
+    sessionStorage.removeItem('cs_owner_auth');
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const checkStatus = async () => {
+      setAuthChecking(true);
+      try {
+        const storedToken = sessionStorage.getItem('cs_owner_token') || '';
+        const res = await fetch('/api/owner/auth/status', {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        });
+        if (!res.ok) throw new Error('Failed to verify status');
+        const data = await res.json();
+        if (!active) return;
+
+        setIsPasswordConfigured(Boolean(data.configured));
+        if (data.authenticated && storedToken) {
+          setAuthToken(storedToken);
+          setIsAuthenticated(true);
+        } else {
+          sessionStorage.removeItem('cs_owner_token');
+          sessionStorage.removeItem('cs_owner_auth');
+          setAuthToken('');
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        console.error('Error checking auth status:', err);
+      } finally {
+        if (active) setAuthChecking(false);
+      }
+    };
+
+    checkStatus();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const fetchLeads = useCallback(async () => {
+    if (!authToken) return;
     setIsLoading(true);
     try {
-      const res = await fetch('/api/leads');
+      const res = await fetch('/api/leads', {
+        headers: authHeaders(),
+      });
+      if (res.status === 401) {
+        handleLock();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setLeads(data.leads || []);
@@ -94,7 +170,7 @@ export const OwnerPortalPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [authToken, authHeaders, handleLock]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -103,30 +179,132 @@ export const OwnerPortalPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [isAuthenticated, fetchLeads]);
 
-  const handleUnlock = (e: React.FormEvent) => {
+  const handleSetupPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcodeInput.trim() === OWNER_PASSCODE) {
+    setAuthError(null);
+
+    if (passwordInput.length < 8) {
+      setAuthError('Please choose a password with at least 8 characters.');
+      return;
+    }
+    if (passwordInput !== confirmPasswordInput) {
+      setAuthError('Passwords do not match.');
+      return;
+    }
+
+    setAuthBusy(true);
+    try {
+      const res = await fetch('/api/owner/auth/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || 'Could not save password.');
+        return;
+      }
+      sessionStorage.setItem('cs_owner_token', data.token);
+      setAuthToken(data.token);
+      setIsPasswordConfigured(true);
       setIsAuthenticated(true);
-      sessionStorage.setItem('cs_owner_auth', 'true');
-      setPasscodeError(false);
-      setPasscodeInput('');
-    } else {
-      setPasscodeError(true);
+      setPasswordInput('');
+      setConfirmPasswordInput('');
+    } catch {
+      setAuthError('Unable to reach server. Please try again.');
+    } finally {
+      setAuthBusy(false);
     }
   };
 
-  const handleLock = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('cs_owner_auth');
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+
+    if (!passwordInput) {
+      setAuthError('Please enter your owner password.');
+      return;
+    }
+
+    setAuthBusy(true);
+    try {
+      const res = await fetch('/api/owner/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || 'Incorrect password. Please try again.');
+        return;
+      }
+      sessionStorage.setItem('cs_owner_token', data.token);
+      setAuthToken(data.token);
+      setIsAuthenticated(true);
+      setPasswordInput('');
+    } catch {
+      setAuthError('Unable to reach server. Please try again.');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordFeedback(null);
+
+    if (newPasswordInput.length < 8) {
+      setChangePasswordFeedback({ type: 'error', text: 'New password must be at least 8 characters.' });
+      return;
+    }
+    if (newPasswordInput !== confirmNewPasswordInput) {
+      setChangePasswordFeedback({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
+
+    setChangePasswordBusy(true);
+    try {
+      const res = await fetch('/api/owner/auth/change-password', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          currentPassword: currentPasswordInput,
+          newPassword: newPasswordInput,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 401 && data.error === 'Authentication required.') {
+        handleLock();
+        return;
+      }
+      if (!res.ok) {
+        setChangePasswordFeedback({ type: 'error', text: data.error || 'Failed to update password.' });
+        return;
+      }
+      sessionStorage.setItem('cs_owner_token', data.token);
+      setAuthToken(data.token);
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setConfirmNewPasswordInput('');
+      setChangePasswordFeedback({ type: 'success', text: 'Owner password updated successfully.' });
+    } catch {
+      setChangePasswordFeedback({ type: 'error', text: 'Unable to reach server. Please try again.' });
+    } finally {
+      setChangePasswordBusy(false);
+    }
   };
 
   const handleUpdateStatus = async (id: string, status: LeadItem['status']) => {
     try {
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ status }),
       });
+      if (res.status === 401) {
+        handleLock();
+        return;
+      }
       if (res.ok) {
         setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
       }
@@ -139,9 +317,13 @@ export const OwnerPortalPage: React.FC = () => {
     try {
       const res = await fetch(`/api/leads/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ notes: notesInput }),
       });
+      if (res.status === 401) {
+        handleLock();
+        return;
+      }
       if (res.ok) {
         setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, notes: notesInput } : l)));
         setEditingNotesId(null);
@@ -154,7 +336,14 @@ export const OwnerPortalPage: React.FC = () => {
   const handleDeleteLead = async (id: string) => {
     if (!confirm('Are you sure you want to remove this prospect record?')) return;
     try {
-      const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/leads/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (res.status === 401) {
+        handleLock();
+        return;
+      }
       if (res.ok) {
         setLeads((prev) => prev.filter((l) => l.id !== id));
       }
@@ -226,7 +415,7 @@ export const OwnerPortalPage: React.FC = () => {
     try {
       const res = await fetch(`/api/leads/${activeProspect.id}/outreach`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           channel: 'email',
           subject: emailSubject,
@@ -234,6 +423,10 @@ export const OwnerPortalPage: React.FC = () => {
           nextStatus: activeProspect.status === 'New' ? 'Contacted' : activeProspect.status,
         }),
       });
+      if (res.status === 401) {
+        handleLock();
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to log outreach');
       setLeads((prev) => prev.map((l) => (l.id === activeProspect.id ? data.lead : l)));
@@ -260,7 +453,7 @@ export const OwnerPortalPage: React.FC = () => {
     try {
       const res = await fetch(`/api/leads/${activeProspect.id}/outreach`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           channel: 'webhook',
           subject: `Prospect dispatched to ${new URL(webhookUrl.trim()).hostname}`,
@@ -268,6 +461,10 @@ export const OwnerPortalPage: React.FC = () => {
           webhookUrl: webhookUrl.trim(),
         }),
       });
+      if (res.status === 401) {
+        handleLock();
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Webhook delivery failed');
       setLeads((prev) => prev.map((l) => (l.id === activeProspect.id ? data.lead : l)));
@@ -331,7 +528,19 @@ export const OwnerPortalPage: React.FC = () => {
   const inquiriesCount = leads.filter((l) => l.type === 'contact_inquiry').length;
   const newCount = leads.filter((l) => l.status === 'New').length;
 
-  // Separate Full-Page Auth Gate
+  // Auth Status Check Loader
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-8 text-center">
+          <div className="w-10 h-10 rounded-full border-2 border-slate-200 border-t-slate-900 animate-spin mx-auto mb-3" />
+          <p className="text-xs font-medium text-slate-600">Verifying Owner Portal access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Separate Full-Page Auth Gate (First-Time Password Creation or Custom Password Sign-In)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
@@ -364,54 +573,128 @@ export const OwnerPortalPage: React.FC = () => {
               <Lock className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-display font-bold text-slate-900">
-              Owner Portal Sign-In
+              {isPasswordConfigured ? 'Owner Portal Sign-In' : 'Create Your Owner Password'}
             </h1>
             <p className="text-xs text-slate-600 mt-1.5 max-w-xs mx-auto leading-relaxed">
-              Separate private workspace receiving prospects, booked calls, and inquiries sent from the public site.
+              {isPasswordConfigured
+                ? 'Private workspace receiving prospects, booked calls, and inquiries sent from the public site.'
+                : 'Set your own private password to secure your Corner Stone Solutions prospect inbox.'}
             </p>
           </div>
 
-          <form onSubmit={handleUnlock} className="space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Owner Passcode
-              </label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  autoFocus
-                  value={passcodeInput}
-                  onChange={(e) => {
-                    setPasscodeInput(e.target.value);
-                    setPasscodeError(false);
-                  }}
-                  placeholder="Enter PIN (default: 2026)"
-                  className="w-full pl-9 pr-3 py-2.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-mono tracking-widest"
-                />
+          {!isPasswordConfigured ? (
+            <form onSubmit={handleSetupPassword} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  New Owner Password
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    autoFocus
+                    autoComplete="new-password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setAuthError(null);
+                    }}
+                    placeholder="Choose a password (min. 8 characters)"
+                    className="w-full pl-9 pr-9 py-2.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-              {passcodeError && (
-                <p className="text-[11px] text-rose-600 font-semibold mt-1">
-                  Incorrect passcode. Default setup passkey is 2026.
-                </p>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Confirm Owner Password
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={confirmPasswordInput}
+                    onChange={(e) => {
+                      setConfirmPasswordInput(e.target.value);
+                      setAuthError(null);
+                    }}
+                    placeholder="Re-enter your password"
+                    className="w-full pl-9 pr-3 py-2.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
+              </div>
+
+              {authError && (
+                <p className="text-[11px] text-rose-600 font-semibold">{authError}</p>
               )}
-            </div>
 
-            <button
-              type="submit"
-              className="w-full py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Open Owner Inbox</span>
-            </button>
+              <button
+                type="submit"
+                disabled={authBusy}
+                className="w-full py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>{authBusy ? 'Saving...' : 'Save Password & Open Inbox'}</span>
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleUnlock} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Owner Password
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoFocus
+                    autoComplete="current-password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setAuthError(null);
+                    }}
+                    placeholder="Enter your owner password"
+                    className="w-full pl-9 pr-9 py-2.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {authError && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1">{authError}</p>
+                )}
+              </div>
 
-            <div className="pt-2 text-center">
-              <span className="text-[11px] text-slate-400">
-                Setup PIN: <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold text-slate-700">2026</code>
-              </span>
-            </div>
-          </form>
+              <button
+                type="submit"
+                disabled={authBusy}
+                className="w-full py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{authBusy ? 'Signing In...' : 'Open Owner Inbox'}</span>
+              </button>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -468,6 +751,17 @@ export const OwnerPortalPage: React.FC = () => {
               <span>Public Page</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
+            <button
+              onClick={() => {
+                setShowChangePasswordModal(true);
+                setChangePasswordFeedback(null);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+              title="Change owner password"
+            >
+              <Settings2 className="w-3.5 h-3.5 text-slate-300" />
+              <span className="hidden md:inline">Password</span>
+            </button>
             <button
               onClick={handleLock}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
@@ -801,7 +1095,7 @@ export const OwnerPortalPage: React.FC = () => {
               Separate Owner Route · Persisted to <code className="font-mono text-[11px] bg-slate-100 px-1 py-0.5 rounded">data/leads.json</code>
             </span>
           </div>
-          <span className="text-[11px]">Public site visitors cannot view this page without your passcode.</span>
+          <span className="text-[11px]">Public site visitors cannot view this page without your password.</span>
         </div>
       </footer>
 
@@ -941,6 +1235,109 @@ export const OwnerPortalPage: React.FC = () => {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full p-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-display font-bold text-slate-900">Change Owner Password</h3>
+                <p className="text-[11px] text-slate-500">Update the password used to unlock `/owner` and `/admin`.</p>
+              </div>
+              <button
+                onClick={() => setShowChangePasswordModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="mt-4 space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPasswordInput}
+                  onChange={(e) => {
+                    setCurrentPasswordInput(e.target.value);
+                    setChangePasswordFeedback(null);
+                  }}
+                  placeholder="Enter current password"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={newPasswordInput}
+                  onChange={(e) => {
+                    setNewPasswordInput(e.target.value);
+                    setChangePasswordFeedback(null);
+                  }}
+                  placeholder="Minimum 8 characters"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={confirmNewPasswordInput}
+                  onChange={(e) => {
+                    setConfirmNewPasswordInput(e.target.value);
+                    setChangePasswordFeedback(null);
+                  }}
+                  placeholder="Re-enter new password"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+              </div>
+
+              {changePasswordFeedback && (
+                <div
+                  className={`p-2.5 rounded-md font-medium ${
+                    changePasswordFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}
+                >
+                  {changePasswordFeedback.text}
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(false)}
+                  className="px-3.5 py-2 font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={changePasswordBusy}
+                  className="px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-md inline-flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>{changePasswordBusy ? 'Updating...' : 'Update Password'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
