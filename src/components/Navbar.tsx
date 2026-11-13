@@ -3,9 +3,10 @@ import { Menu, X, ArrowRight } from 'lucide-react';
 
 interface NavbarProps {
   onOpenScheduler: () => void;
+  onOpenNonprofitModal: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler, onOpenNonprofitModal }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const links = [
@@ -36,8 +37,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler }) => {
             </div>
           </a>
 
-          {/* Zone 2: 4-5 Clean single-line links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+          {/* Zone 2: Clean single-line links */}
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
             {links.map((link) => (
               <a
                 key={link.label}
@@ -47,6 +48,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler }) => {
                 {link.label}
               </a>
             ))}
+            <button
+              type="button"
+              onClick={onOpenNonprofitModal}
+              className="text-blue-700 hover:text-blue-900 font-semibold transition-colors whitespace-nowrap py-1 border-b-2 border-transparent hover:border-blue-700"
+            >
+              Nonprofits (NPSP/NPC)
+            </button>
           </nav>
 
           {/* Zone 3: 1 Primary CTA */}
@@ -86,6 +94,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenScheduler }) => {
                 {link.label}
               </a>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenNonprofitModal();
+              }}
+              className="text-left text-base font-semibold text-blue-700 hover:text-blue-900 py-1"
+            >
+              Nonprofits (NPSP &amp; NPC)
+            </button>
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
               <button
                 onClick={() => {

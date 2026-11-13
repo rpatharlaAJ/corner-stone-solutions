@@ -4,9 +4,10 @@ import { CORE_SERVICES } from '../data/consultingData';
 
 interface ServicesSectionProps {
   onSelectService: (serviceTitle: string) => void;
+  onOpenNonprofitModal: () => void;
 }
 
-export const ServicesSection: React.FC<ServicesSectionProps> = ({ onSelectService }) => {
+export const ServicesSection: React.FC<ServicesSectionProps> = ({ onSelectService, onOpenNonprofitModal }) => {
   return (
     <section id="services" className="py-20 bg-slate-50 border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -78,7 +79,17 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onSelectServic
               </div>
 
               {/* Action Button */}
-              <div className="mt-8 pt-5 border-t border-slate-100">
+              <div className="mt-8 pt-5 border-t border-slate-100 space-y-2.5">
+                {service.id === 'nonprofit-npsp-npc' && (
+                  <button
+                    type="button"
+                    onClick={onOpenNonprofitModal}
+                    className="w-full py-2 px-4 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 rounded-md transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <span>Compare NPSP vs. Nonprofit Cloud (NPC)</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => onSelectService(service.title)}
                   className="w-full py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-slate-900 bg-slate-100 hover:bg-slate-900 hover:text-white rounded-md transition-colors flex items-center justify-center gap-2"
