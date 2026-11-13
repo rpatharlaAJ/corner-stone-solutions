@@ -5,9 +5,10 @@ import { HERO_IMAGE } from '../data/consultingData';
 interface HeroProps {
   onOpenScheduler: () => void;
   onExploreServices: () => void;
+  onOpenNonprofitModal: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onOpenScheduler, onExploreServices }) => {
+export const Hero: React.FC<HeroProps> = ({ onOpenScheduler, onExploreServices, onOpenNonprofitModal }) => {
   return (
     <section className="relative overflow-hidden bg-white pt-12 pb-16 lg:pt-16 lg:pb-20 border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,6 +68,17 @@ export const Hero: React.FC<HeroProps> = ({ onOpenScheduler, onExploreServices }
                 className="px-6 py-3.5 text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
               >
                 <span>View Core Services</span>
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={onOpenNonprofitModal}
+                className="text-xs font-semibold text-blue-700 hover:text-blue-900 inline-flex items-center gap-1.5 underline underline-offset-4"
+              >
+                <span>Running a Nonprofit? Explore NPSP &amp; Nonprofit Cloud (NPC) solutions</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 

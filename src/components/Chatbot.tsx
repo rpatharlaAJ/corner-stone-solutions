@@ -15,6 +15,7 @@ interface ChatMessage {
 
 interface ChatbotProps {
   onOpenScheduler: (serviceTitle?: string, notes?: string) => void;
+  onOpenNonprofitModal: () => void;
 }
 
 const STARTER_PROMPTS = [
@@ -24,7 +25,7 @@ const STARTER_PROMPTS = [
   "Can you connect Salesforce to QuickBooks or Stripe?",
 ];
 
-export const Chatbot: React.FC<ChatbotProps> = ({ onOpenScheduler }) => {
+export const Chatbot: React.FC<ChatbotProps> = ({ onOpenScheduler, onOpenNonprofitModal }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -257,19 +258,39 @@ export const Chatbot: React.FC<ChatbotProps> = ({ onOpenScheduler }) => {
                   >
                     <div className="whitespace-pre-wrap">{msg.content}</div>
 
-                    {/* Action Card triggered when user needs contact */}
-                    {msg.actionTrigger === 'SCHEDULE_CALL' && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 bg-white/70 p-3 rounded-lg border border-slate-200 text-slate-900">
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-900 mb-1">
+                    {/* Action Card triggered when user needs contact or Nonprofit guide */}
+                    {(msg.actionTrigger === 'SCHEDULE_CALL' || msg.actionTrigger === 'NONPROFIT_GUIDE') && (
+                      <div className="mt-3 pt-3 border-t border-slate-200 bg-white/70 p-3 rounded-lg border border-slate-200 text-slate-900 space-y-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-900">
                           <Calendar className="w-3.5 h-3.5 text-blue-700" />
                           <span>Recommended Next Step:</span>
                         </div>
-                        <p className="text-[11px] text-slate-600 mb-2">
+                        <p className="text-[11px] text-slate-600">
                           Speak directly with our Lead Certified Architect to review your exact requirements.
                         </p>
+                        {(msg.actionTrigger === 'NONPROFIT_GUIDE' ||
+                          msg.content.toLowerCase().includes('npsp') ||
+                          msg.content.toLowerCase().includes('nonprofit cloud')) && (
+                          <button
+                            onClick={() => {
+                              setIsOpen(false);
+                              onOpenNonprofitModal();
+                            }}
+                            className="w-full py-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded flex items-center justify-center gap-1.5"
+                          >
+                            <span>Open Nonprofit (NPSP &amp; NPC) Guide</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
-                            onOpenScheduler(undefined, `Inquiry from Chatbot: ${messages[messages.length - 2]?.content || 'CRM Discussion'}`);
+                            const isNp =
+                              msg.content.toLowerCase().includes('npsp') ||
+                              msg.content.toLowerCase().includes('nonprofit');
+                            onOpenScheduler(
+                              isNp ? 'Nonprofit Operations (NPSP & NPC)' : undefined,
+                              `Inquiry from Chatbot: ${messages[messages.length - 2]?.content || 'CRM Discussion'}`
+                            );
                           }}
                           className="w-full py-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-white bg-slate-900 hover:bg-slate-800 rounded flex items-center justify-center gap-1.5 shadow-sm"
                         >
