@@ -56,7 +56,7 @@ export default function App() {
       return;
     }
 
-    document.title = 'Corner Stone Solutions | SMB Salesforce Consulting';
+    document.title = 'Corner Stone Solutions | SMB & Nonprofit Salesforce Consulting';
     if (robotsMeta) robotsMeta.setAttribute('content', 'index, follow');
 
     const canonicalUrl = `${window.location.origin}/`;

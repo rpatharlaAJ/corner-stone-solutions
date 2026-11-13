@@ -17,6 +17,11 @@ const FAQS = [
       'We use transparent fixed-scope pricing for QuickStarts and CRM Health Audits, and predictable monthly retainers with rollover hours for Dedicated Admin & Flow Automation—with zero runaway hourly billing.',
   },
   {
+    question: 'Do you support Nonprofits using NPSP or Nonprofit Cloud (NPC)?',
+    answer:
+      'Yes. We help mission-driven nonprofits manage donors, householding, recurring gifts, grants, and program outcomes—whether launching fresh on Salesforce Nonprofit Cloud (NPC), optimizing an existing Nonprofit Success Pack (NPSP) org, or transitioning cleanly from NPSP to NPC.',
+  },
+  {
     question: 'Can you migrate our team off spreadsheets or HubSpot into Salesforce?',
     answer:
       'Yes. We clean, deduplicate, and map your accounts, contacts, historical deals, and custom pricing tiers so your reps start with accurate data and zero re-keying.',

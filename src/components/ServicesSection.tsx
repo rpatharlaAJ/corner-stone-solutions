@@ -19,15 +19,15 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onSelectServic
             <span>Core Solutions</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-display font-bold text-slate-900 tracking-tight text-balance">
-            Three focused ways we help small businesses scale on Salesforce.
+            Four focused ways we help businesses and nonprofits scale on Salesforce.
           </h2>
           <p className="mt-3 text-base text-slate-600 leading-relaxed">
-            No endless menu of confusing enterprise add-ons. We focus on the three core areas that immediately eliminate operational friction and accelerate revenue.
+            No endless menu of confusing enterprise add-ons. We focus on the core solutions that eliminate operational friction across SMBs and nonprofits using Sales Cloud, NPSP, or Nonprofit Cloud (NPC).
           </p>
         </div>
 
-        {/* 3 Core Solution Cards */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        {/* 4 Core Solution Cards (Clean 2x2 Grid) */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
           {CORE_SERVICES.map((service) => (
             <div
               key={service.id}
@@ -83,7 +83,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({ onSelectServic
                   onClick={() => onSelectService(service.title)}
                   className="w-full py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-slate-900 bg-slate-100 hover:bg-slate-900 hover:text-white rounded-md transition-colors flex items-center justify-center gap-2"
                 >
-                  <span>Book {service.title.split(' ')[1]} Call</span>
+                  <span>{service.ctaLabel}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
