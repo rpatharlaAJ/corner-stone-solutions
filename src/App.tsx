@@ -15,6 +15,7 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { DiscoverySchedulerModal } from './components/DiscoverySchedulerModal';
 import { Chatbot } from './components/Chatbot';
+import { FaqSection } from './components/FaqSection';
 import { OwnerPortalPage } from './components/OwnerPortalPage';
 
 function isOwnerPortalLocation(): boolean {
@@ -46,6 +47,35 @@ export default function App() {
       window.removeEventListener('hashchange', syncRoute);
     };
   }, []);
+
+  useEffect(() => {
+    const robotsMeta = document.querySelector('meta[name="robots"]');
+    if (isOwnerRoute) {
+      document.title = 'Owner Prospect Portal | Corner Stone Solutions';
+      if (robotsMeta) robotsMeta.setAttribute('content', 'noindex, nofollow');
+      return;
+    }
+
+    document.title = 'Corner Stone Solutions | SMB Salesforce Consulting';
+    if (robotsMeta) robotsMeta.setAttribute('content', 'index, follow');
+
+    const canonicalUrl = `${window.location.origin}/`;
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', canonicalUrl);
+
+    let ogUrlMeta = document.querySelector('meta[property="og:url"]');
+    if (!ogUrlMeta) {
+      ogUrlMeta = document.createElement('meta');
+      ogUrlMeta.setAttribute('property', 'og:url');
+      document.head.appendChild(ogUrlMeta);
+    }
+    ogUrlMeta.setAttribute('content', canonicalUrl);
+  }, [isOwnerRoute]);
 
   if (isOwnerRoute) {
     return <OwnerPortalPage />;
@@ -93,6 +123,11 @@ export default function App() {
         {/* Industry Insights & Practical Rules */}
         <BlogSection
           onBookCall={() => handleOpenScheduler()}
+        />
+
+        {/* Frequently Asked Questions (Matching FAQPage Schema) */}
+        <FaqSection
+          onOpenScheduler={() => handleOpenScheduler()}
         />
 
         {/* Clean Contact & Direct Inquiry */}

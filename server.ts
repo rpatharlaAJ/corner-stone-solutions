@@ -401,6 +401,53 @@ app.delete('/api/leads/:id', (req, res) => {
   }
 });
 
+// Technical SEO endpoints: robots.txt, sitemap.xml, and crawler protection for owner routes
+function resolveBaseUrl(req: express.Request): string {
+  const configured = process.env.APP_URL?.trim();
+  if (configured && !configured.includes('MY_APP_URL')) {
+    return configured.replace(/\/+$/, '');
+  }
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const host = req.get('host') || `localhost:${port}`;
+  return `${proto}://${host}`;
+}
+
+app.get('/robots.txt', (req, res) => {
+  const baseUrl = resolveBaseUrl(req);
+  res.type('text/plain').send(
+    [
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /owner',
+      'Disallow: /admin',
+      'Disallow: /api/',
+      '',
+      `Sitemap: ${baseUrl}/sitemap.xml`,
+    ].join('\n')
+  );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = resolveBaseUrl(req);
+  const lastmod = new Date().toISOString().split('T')[0];
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`
+  );
+});
+
+app.use(['/owner', '/admin'], (_req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
 // In development, hook Vite middleware
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
