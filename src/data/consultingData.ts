@@ -1,4 +1,9 @@
-export const HERO_IMAGE = '/src/assets/images/hero_consulting_office_1794212882004.jpg';
+import heroOfficeImg from '../assets/images/hero_consulting_office_1794212882004.jpg';
+import manufacturingImg from '../assets/images/casestudy_manufacturing_1794212882389.jpg';
+import fintechImg from '../assets/images/casestudy_fintech_1794212883403.jpg';
+import healthcareImg from '../assets/images/casestudy_healthcare_1794212884229.jpg';
+
+export const HERO_IMAGE = heroOfficeImg;
 
 export const CERTIFICATIONS = [
   'Salesforce Certified Application Architect',
@@ -63,7 +68,7 @@ export const TRANSFORMATIONS = [
     id: 'quoting',
     industry: 'Wholesale & Equipment',
     title: 'From 5-Day Spreadsheet Quotes to 1-Click Contracts',
-    image: '/src/assets/images/casestudy_manufacturing_1794212882389.jpg',
+    image: manufacturingImg,
     before: 'Sales reps calculated discount tiers in 14 conflicting Excel sheets, resulting in margin errors and 5-day quote turnaround times.',
     after: 'Standardized Salesforce Price Books with automated margin validation and 1-click DocuSign quotes. Average turnaround cut to 1.8 days.',
     metric: '64% Faster Turnaround',
@@ -72,7 +77,7 @@ export const TRANSFORMATIONS = [
     id: 'operations',
     industry: 'Professional & Advisory Services',
     title: 'Eliminating the "Messy Email Hand-Off" Post-Sale',
-    image: '/src/assets/images/casestudy_fintech_1794212883403.jpg',
+    image: fintechImg,
     before: 'Closed deals were handed over to operations via disjointed email chains, resulting in delayed onboarding and missed client deadlines.',
     after: 'Automated Flow creates onboarding projects, notifies ops team with all client intake requirements, and triggers introductory welcome portals.',
     metric: '71% Faster Client Onboarding',
@@ -81,7 +86,7 @@ export const TRANSFORMATIONS = [
     id: 'visibility',
     industry: 'Healthcare & Clinical Services',
     title: 'Executive Real-Time Pipeline Visibility',
-    image: '/src/assets/images/casestudy_healthcare_1794212884229.jpg',
+    image: healthcareImg,
     before: 'Founders had to wait for monthly spreadsheet reconciliations to know actual pipeline numbers and revenue forecasts.',
     after: 'Live executive dashboards showing weighted pipeline, conversion rates by stage, and upcoming invoice schedules in real-time.',
     metric: '100% Real-Time Visibility',
